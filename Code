@@ -1,0 +1,86 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error, r2_score
+
+# 🔹 Load dataset
+data = pd.read_excel("/content/drive/MyDrive/Dataset_Dual_hop_UWOC.xlsx")
+
+# 🔹 Show column names (VERY IMPORTANT)
+print("Columns:", data.columns)
+
+# 🔹 Remove spaces in column names (fix common issue)
+data.columns = data.columns.str.strip()
+
+# 🔹 Handle water column (if exists)
+if 'water' in data.columns:
+    data['water'] = data['water'].str.lower()
+    data['water'] = data['water'].map({'fresh': 0, 'salty': 1})
+
+# 🔹 Drop missing values (important)
+data = data.dropna()
+
+# 🔹 Select features (EDIT if names slightly different)
+features = ['SNR','bubble','water',
+            'a1','a2','b1','b2',
+            'c1','c2','lambda1','lambda2',
+            'omega1','omega2']
+
+# 🔹 Keep only existing columns (safe)
+features = [f for f in features if f in data.columns]
+
+X = data[features]
+y = data['BER']   # make sure column name is BER
+
+# 🔹 Train-test split
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42)
+
+# 🔹 Model
+model = RandomForestRegressor(n_estimators=300, random_state=42)
+
+# 🔹 Train
+model.fit(X_train, y_train)
+
+# 🔹 Predict
+pred = model.predict(X_test)
+
+# 🔹 Evaluation
+mse = mean_squared_error(y_test, pred)
+r2 = r2_score(y_test, pred)
+
+print("MSE:", mse)
+print("R2 Score:", r2)
+
+# 🔹 Plot Actual vs Predicted
+# 🔹 Create dataframe for plotting
+plot_data = X_test.copy()
+plot_data['Actual_BER'] = y_test
+plot_data['Predicted_BER'] = pred
+
+# 🔹 Sort by SNR (VERY IMPORTANT)
+plot_data = plot_data.sort_values(by='SNR')
+
+# 🔹 Plot
+plt.figure()
+
+plt.plot(plot_data['SNR'], plot_data['Actual_BER'],
+         marker='o', label='Actual BER')
+
+plt.plot(plot_data['SNR'], plot_data['Predicted_BER'],
+         marker='x', label='Predicted BER')
+
+# 🔹 Log scale for BER
+plt.yscale('log')
+
+plt.xlabel("Average SNR (dB)")
+plt.ylabel("BER (log scale)")
+plt.title("Actual vs Predicted BER (UWOC System)")
+
+plt.legend()
+plt.grid(True, which="both")
+
+plt.show()
